@@ -6,7 +6,7 @@ from io import BytesIO
 app = FastAPI()
 
 # Загрузка обученной модели
-model_path = "E:\Мои документы\Desktop\Уроки\Python\laptop_price_model.pkl"
+model_path = "E:\Мои документы\Desktop\Уроки\Python\ИТИП\laptop_price_model.pkl"
 model = joblib.load(model_path)
 
 @app.post("/predict/")
