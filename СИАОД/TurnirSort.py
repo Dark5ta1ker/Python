@@ -1,58 +1,71 @@
-import time
+# main_program.py
 import random
+import time
+from WindowOutput import start_console
 
-def tournament_sort(arr):                                                   # Строим турнирное дерево...    
+
+# Функции сортировки
+def tournament_sort(arr):
     def find_winner(sub_arr):
         while len(sub_arr) > 1:
             winners = []
             for i in range(0, len(sub_arr), 2):
-                if i + 1 < len(sub_arr):                                    # Выбираем кого повесить... на доску почета.                                        
+                if i + 1 < len(sub_arr):
                     winners.append(min(sub_arr[i], sub_arr[i + 1]))
-                else:                                                       # Если остался непарный элемент, он дерется со своей тенью
+                else:
                     winners.append(sub_arr[i])
             sub_arr = winners
         return sub_arr[0] if sub_arr else None
 
     sorted_array = []
     while arr:
-        winner = find_winner(arr)                                           # Находим победителя (минимальный элемент)
-        sorted_array.append(winner)                                         # Добавляем победителя в отсортированный массив
-        arr.remove(winner)                                                  # Удаляем победителя из исходного массива
+        winner = find_winner(arr)
+        sorted_array.append(winner)
+        arr.remove(winner)
     return sorted_array
 
-def quicksort(arr):                                                         # Проверяем длину
+
+def quicksort(arr):
     if len(arr) <= 1:
         return arr
-
-    pivot_index = len(arr) // 2                         # Выбираем средний элемент в качестве опорного
+    pivot_index = len(arr) // 2
     pivot = arr[pivot_index]
-    
-    # Разделяем массив на три части
-    left = [x for x in arr if x < pivot]                # Элементы меньше опорного
-    middle = [x for x in arr if x == pivot]             # Элементы, равные опорному
-    right = [x for x in arr if x > pivot]               # Элементы больше опорного
+    left = [x for x in arr if x < pivot]
+    middle = [x for x in arr if x == pivot]
+    right = [x for x in arr if x > pivot]
+    return quicksort(left) + middle + quicksort(right)
 
-    return quicksort(left) + middle + quicksort(right)  # Рекурсия...
 
 # Генерация массива
-arr = [random.randint(0, 1000000) for _ in range(100000)]
-
-# Турнирная сортировка
-start_time = time.time()
-tournament_sort(arr.copy())
-print("Турнирная сортировка: {:.6f} секунд".format(time.time() - start_time))
-
-# Быстрая сортировка
-start_time = time.time()
-quicksort(arr.copy())
-print("Быстрая сортировка: {:.6f} секунд".format(time.time() - start_time))
-
-# Стандартная сортировка Python
-start_time = time.time()
-sorted(arr)
-print("Стандартная сортировка: {:.6f} секунд".format(time.time() - start_time))
+arr = [random.randint(0, 1000000) for _ in range(10000)]
 
 
+# Логика программы, которая будет выполняться после запуска графического интерфейса
+def run_program():
+    print("Начинаем тестирование сортировок...")
+    
+    # Турнирная сортировка
+    start_time = time.time()
+    tournament_sort(arr.copy())
+    print(f"Турнирная сортировка завершена за {time.time() - start_time:.6f} секунд.")
+    
+    # Быстрая сортировка
+    start_time = time.time()
+    quicksort(arr.copy())
+    print(f"Быстрая сортировка завершена за {time.time() - start_time:.6f} секунд.")
+    
+    # Стандартная сортировка
+    start_time = time.time()
+    sorted(arr)
+    print(f"Стандартная сортировка завершена за {time.time() - start_time:.6f} секунд.")
 
 
+if __name__ == "__main__":
+    # Запуск графического интерфейса
+    root, app = start_console()
 
+    # Запуск программы через 1 секунду после инициализации интерфейса
+    root.after(1000, run_program)
+
+    # Запуск главного цикла Tkinter
+    root.mainloop()
