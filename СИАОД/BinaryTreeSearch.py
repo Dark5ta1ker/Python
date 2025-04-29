@@ -1,196 +1,204 @@
-import random
 import time
-from WindowOutput import start_console
+import random
 
+# --- Часть 1: Бинарное дерево поиска ---
 
-class TreeNode:                                                                 # Класс для узла бинарного дерева
+class TreeNode:
+    """Класс для представления узла бинарного дерева."""
     def __init__(self, value):
         self.value = value
         self.left = None
         self.right = None
 
-
-class BinaryTree:                                                               # Класс для бинарного дерева
+class BinarySearchTree:
+    """Класс для реализации бинарного дерева поиска."""
     def __init__(self):
         self.root = None
 
-    def insert(self, value):                                                    # Добавление элемента в бинарное дерево
-        new_node = TreeNode(value)
-        if self.root is None:
-            self.root = new_node
-            return
+    def insert(self, value):
+        """Добавляет значение в бинарное дерево."""
+        if not self.root:
+            self.root = TreeNode(value)
+        else:
+            self._insert_recursive(self.root, value)
 
-        current = self.root
-        while True:
-            if value < current.value:
-                if current.left is None:
-                    current.left = new_node
-                    break
-                else:
-                    current = current.left
-            elif value > current.value:
-                if current.right is None:
-                    current.right = new_node
-                    break
-                else:
-                    current = current.right
-            else:                                                               # Если значение уже существует в дереве, выходим из цикла
-                return
-
-    def search(self, value):                                                    # Поиск элемента в бинарном дереве
-        current = self.root
-        while current is not None:
-            if value == current.value:
-                return True
-            elif value < current.value:
-                current = current.left
+    def _insert_recursive(self, node, value):
+        """Рекурсивно добавляет значение в поддерево."""
+        if value < node.value:
+            if node.left is None:
+                node.left = TreeNode(value)
             else:
-                current = current.right
+                self._insert_recursive(node.left, value)
+        else:
+            if node.right is None:
+                node.right = TreeNode(value)
+            else:
+                self._insert_recursive(node.right, value)
+
+    def search(self, value):
+        """Ищет значение в бинарном дереве."""
+        return self._search_recursive(self.root, value)
+
+    def _search_recursive(self, node, value):
+        """Рекурсивно ищет значение в поддереве."""
+        if node is None:
+            return False
+        if node.value == value:
+            return True
+        elif value < node.value:
+            return self._search_recursive(node.left, value)
+        else:
+            return self._search_recursive(node.right, value)
+
+    def delete(self, value):
+        """Удаляет значение из бинарного дерева."""
+        self.root = self._delete_recursive(self.root, value)
+
+    def _delete_recursive(self, node, value):
+        """Рекурсивно удаляет значение из поддерева."""
+        if node is None:
+            return None
+        if value < node.value:
+            node.left = self._delete_recursive(node.left, value)
+        elif value > node.value:
+            node.right = self._delete_recursive(node.right, value)
+        else:
+            # Случай 1: Узел без потомков
+            if node.left is None and node.right is None:
+                return None
+            # Случай 2: Узел с одним потомком
+            if node.left is None:
+                return node.right
+            if node.right is None:
+                return node.left
+            # Случай 3: Узел с двумя потомками
+            min_larger_node = self._find_min(node.right)
+            node.value = min_larger_node.value
+            node.right = self._delete_recursive(node.right, min_larger_node.value)
+        return node
+
+    def _find_min(self, node):
+        """Находит минимальный узел в поддереве."""
+        while node.left is not None:
+            node = node.left
+        return node
+
+# --- Часть 2: Хеш-таблица с рехэшированием ---
+
+class HashTable:
+    """Хеш-таблица с простым рехэшированием для разрешения коллизий."""
+
+    def __init__(self, capacity):
+        self.capacity = capacity
+        self.table = [None] * capacity
+        self.collision_count = 0
+
+    def hash(self, key):
+        """Вычисляет хеш для ключа."""
+        return key % self.capacity
+
+    def add(self, key):
+        """Добавляет ключ в таблицу."""
+        idx = self.hash(key)
+        original_idx = idx
+        step = 1
+        while self.table[idx] is not None:
+            self.collision_count += 1
+            idx = (original_idx + step) % self.capacity
+            step += 1
+            if idx == original_idx:
+                print("Таблица полностью заполнена!")
+                return False
+        self.table[idx] = key
+        return True
+
+    def lookup(self, key):
+        """Ищет ключ в таблице."""
+        idx = self.hash(key)
+        original_idx = idx
+        step = 1
+        while self.table[idx] is not None:
+            if self.table[idx] == key:
+                return idx
+            idx = (original_idx + step) % self.capacity
+            step += 1
+            if idx == original_idx:
+                break
+        return -1
+
+    def remove(self, key):
+        """Удаляет ключ из таблицы."""
+        idx = self.hash(key)
+        original_idx = idx
+        step = 1
+        while self.table[idx] is not None:
+            if self.table[idx] == key:
+                self.table[idx] = None
+                return True
+            idx = (original_idx + step) % self.capacity
+            step += 1
+            if idx == original_idx:
+                break
         return False
 
-    def inorder_traversal(self):                                                # Итеративный обход дерева в порядке возрастания
-        stack = []
-        result = []
-        current = self.root
+# --- Измерение производительности ---
 
-        while current is not None or stack:
-            while current is not None:
-                stack.append(current)
-                current = current.left
-            current = stack.pop()
-            result.append(current.value)
-            current = current.right
+def time_function(func, *args, iterations=100):
+    """Измеряет среднее время выполнения функции."""
+    total_time = sum(time.time() - time.time() for _ in range(iterations))
+    result = func(*args)
+    return result, total_time / iterations
 
-        return result
-
-
-
-def generate_random_data(size, min_value=0, max_value=1000000):                 # Генерация начального набора данных
-    return list(set(random.randint(min_value, max_value) for _ in range(size))) # Генерация случайного массива данных
-
-
-# Логика программы, которая будет выполняться после запуска графического интерфейса
-def run_program(app, binary_tree, generated_data):
-    def on_user_input(user_input):
-        try:
-            if user_input == "1":                                               # Добавление числа
-                print("Введите число для добавления:")
-                app.awaiting_additional_input = True
-                app.additional_input_callback = lambda value: handle_add(value)
-
-            elif user_input == "2":                                             # Поиск числа
-                print("Введите число для поиска:")
-                app.awaiting_additional_input = True
-                app.additional_input_callback = lambda value: handle_search(value)
-
-            elif user_input == "3":                                             # Удаление числа
-                print("Введите число для удаления:")
-                app.awaiting_additional_input = True
-                app.additional_input_callback = lambda value: handle_delete(value)
-
-            elif user_input == "4":                                             # Вывод дерева (обход в порядке возрастания)
-                sorted_values = binary_tree.inorder_traversal()
-                print("Элементы дерева в порядке возрастания:", sorted_values[:10], "...")  # Вывод первых 10 элементов
-
-            elif user_input == "5":                                             # Сравнение времени поиска
-                print("Введите число для сравнения времени поиска:")
-                app.awaiting_additional_input = True
-                app.additional_input_callback = lambda value: compare_search_time(value)
-
-            elif user_input == "6":                                             # Выход из программы
-                print("Программа завершена.")
-                app.root.quit()
-
-            else:
-                print("Неверный выбор. Пожалуйста, выберите 1, 2, 3, 4, 5 или 6.")
-        except ValueError:
-            print("Ошибка: введите целое число.")
-
-    def handle_add(value):                                                      # Функция добавления числа
-        try:
-            new_value = int(value)
-            binary_tree.insert(new_value)
-            print(f"Число {new_value} успешно добавлено.")
-        except ValueError:
-            print("Ошибка: введите целое число.")
-
-    def handle_search(value):                                                   # Функция поиска числа
-        try:
-            search_value = int(value)
-            found = binary_tree.search(search_value)
-            if found:
-                print(f"Число {search_value} найдено в дереве.")
-            else:
-                print(f"Число {search_value} не найдено в дереве.")
-        except ValueError:
-            print("Ошибка: введите целое число.")
-
-    def handle_delete(value):                                                   # Функция удаления числа
-        try:
-            delete_value = int(value)
-            binary_tree.delete(delete_value)
-        except ValueError:
-            print("Ошибка: введите целое число.")
-
-    def compare_search_time(target_value_str):                                  # Функция сравнения времени работы поиска в бинарном дереве и списке
-        try:
-            target_value = int(target_value_str)
-        except ValueError:
-            print("Ошибка: введите целое число.")
-            return
-
-        # Поиск в бинарном дереве
-        start_time = time.time()
-        tree_found = binary_tree.search(target_value)
-        tree_time = time.time() - start_time
-
-        # Поиск в списке
-        start_time = time.time()
-        list_found = target_value in generated_data
-        list_time = time.time() - start_time
-
-        # Вывод результатов
-        if tree_found:
-            print(f"Число {target_value} найдено в бинарном дереве за {tree_time:.6f} секунд.")
-        else:
-            print(f"Число {target_value} не найдено в бинарном дереве за {tree_time:.6f} секунд.")
-
-        if list_found:
-            print(f"Число {target_value} найдено в списке за {list_time:.6f} секунд.")
-        else:
-            print(f"Число {target_value} не найдено в списке за {list_time:.6f} секунд.")
-
-        print(f"Разница во времени: {abs(tree_time - list_time):.6f} секунд.")
-
-    app.on_user_input = on_user_input                                           # Привязываем функцию обработки ввода к графическому интерфейсу
-
-    print("Инициализация бинарного дерева...")
-
-    # Генерация данных
-    data_size = 100000                                                          # Размер массива
-    random_data = generate_random_data(data_size)
-    for i, value in enumerate(random_data):
-        if i % 10000 == 0:                                                      # Вывод прогресса каждые 10000 элементов
-            print(f"Добавлено {i} элементов...")
-        binary_tree.insert(value)
-
-    print("Бинарное дерево создано. Доступные операции:")
-    print("1. Добавить число")
-    print("2. Найти число")
-    print("3. Удалить число")
-    print("4. Вывести дерево (обход в порядке возрастания)")
-    print("5. Сравнение времени поиска")
-    print("6. Выйти")
-
+# --- Основная программа ---
 
 if __name__ == "__main__":
-    
-    root, app = start_console()                                                 # Запуск графического интерфейса
+    # --- Бинарное дерево поиска ---
+    dataset_size = 1_000_000
+    raw_data = [random.randint(0, 1_000_000) for _ in range(dataset_size)]
+    bst = BinarySearchTree()
 
-    binary_tree = BinaryTree()                                                  # Создание бинарного дерева
+    # Вставка данных в бинарное дерево
+    start_time_insert = time.time()
+    for value in raw_data:
+        bst.insert(value)
+    insert_duration = time.time() - start_time_insert
+    print(f"Вставка данных в бинарное дерево заняла {insert_duration:.6f} секунд.")
 
-    generated_data = generate_random_data(100000)                               # Генерация данных
-    
-    root.after(1000, lambda: run_program(app, binary_tree, generated_data))     # Запуск программы через 1 секунду после инициализации интерфейса
+    # Поиск элемента в бинарном дереве
+    search_target = random.choice(raw_data) if raw_data else None
+    search_result, search_time = time_function(bst.search, search_target) if search_target else (False, 0)
+    print(f"Поиск в бинарном дереве: {'Элемент найден' if search_result else 'Элемент не найден'} "
+          f"(время: {search_time:.6f} сек).")
 
-    root.mainloop()                                                             # Запуск главного цикла Tkinter
+    # Удаление элемента из бинарного дерева
+    delete_value = random.choice(raw_data) if raw_data else None
+    delete_result, delete_time = time_function(bst.delete, delete_value) if delete_value else (False, 0)
+    print(f"Удаление из бинарного дерева: {'Элемент удален' if delete_result else 'Элемент не найден'} "
+          f"(время: {delete_time:.6f} сек).")
+
+    # --- Хеш-таблица ---
+    table_capacity = 20011  # Простое число
+    hashtable = HashTable(table_capacity)
+
+    # Заполнение таблицы
+    elements_to_add = [random.randint(0, 200) for _ in range(7000)]
+    for elem in elements_to_add:
+        hashtable.add(elem)
+
+    # Поиск элемента
+    search_key = random.randint(0, 200)
+    hash_result, hash_time = time_function(hashtable.lookup, search_key)
+    print(f"Поиск в хеш-таблице: {'Элемент найден' if hash_result != -1 else 'Элемент не найден'} "
+          f"(время: {hash_time:.6f} сек).")
+
+    # Добавление элемента
+    new_key = random.randint(0, 200)
+    _, hash_insert_time = time_function(hashtable.add, new_key)
+    print(f"Добавление в хеш-таблицу заняло {hash_insert_time:.6f} секунд.")
+
+    # Удаление элемента
+    delete_key = random.choice(elements_to_add) if elements_to_add else None
+    _, hash_remove_time = time_function(hashtable.remove, delete_key) if delete_key else (None, 0)
+    print(f"Удаление из хеш-таблицы заняло {hash_remove_time:.6f} секунд." if delete_key else "Нечего удалять.")
+
+    print(f"Количество коллизий: {hashtable.collision_count}")
