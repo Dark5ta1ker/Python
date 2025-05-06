@@ -1,8 +1,8 @@
 import time
 import random
+import bisect
 
-# --- Часть 1: Бинарное дерево поиска ---
-
+# --- Бинарное дерево поиска ---
 class TreeNode:
     """Класс для представления узла бинарного дерева."""
     def __init__(self, value):
@@ -15,15 +15,13 @@ class BinarySearchTree:
     def __init__(self):
         self.root = None
 
-    def insert(self, value):
-        """Добавляет значение в бинарное дерево."""
+    def insert(self, value):  # Добавление значения
         if not self.root:
             self.root = TreeNode(value)
         else:
             self._insert_recursive(self.root, value)
 
-    def _insert_recursive(self, node, value):
-        """Рекурсивно добавляет значение в поддерево."""
+    def _insert_recursive(self, node, value):  # Рекурсивная вставка
         if value < node.value:
             if node.left is None:
                 node.left = TreeNode(value)
@@ -35,27 +33,20 @@ class BinarySearchTree:
             else:
                 self._insert_recursive(node.right, value)
 
-    def search(self, value):
-        """Ищет значение в бинарном дереве."""
+    def search(self, value):  # Поиск значения
         return self._search_recursive(self.root, value)
 
-    def _search_recursive(self, node, value):
-        """Рекурсивно ищет значение в поддереве."""
+    def _search_recursive(self, node, value):  # Рекурсивный поиск
         if node is None:
             return False
         if node.value == value:
             return True
-        elif value < node.value:
-            return self._search_recursive(node.left, value)
-        else:
-            return self._search_recursive(node.right, value)
+        return self._search_recursive(node.left, value) if value < node.value else self._search_recursive(node.right, value)
 
-    def delete(self, value):
-        """Удаляет значение из бинарного дерева."""
+    def delete(self, value):  # Удаление значения
         self.root = self._delete_recursive(self.root, value)
 
-    def _delete_recursive(self, node, value):
-        """Рекурсивно удаляет значение из поддерева."""
+    def _delete_recursive(self, node, value):  # Рекурсивное удаление
         if node is None:
             return None
         if value < node.value:
@@ -63,71 +54,64 @@ class BinarySearchTree:
         elif value > node.value:
             node.right = self._delete_recursive(node.right, value)
         else:
-            # Случай 1: Узел без потомков
-            if node.left is None and node.right is None:
+            if node.left is None and node.right is None:  # Узел без потомков
                 return None
-            # Случай 2: Узел с одним потомком
-            if node.left is None:
+            if node.left is None:  # Узел с одним потомком
                 return node.right
             if node.right is None:
                 return node.left
-            # Случай 3: Узел с двумя потомками
-            min_larger_node = self._find_min(node.right)
-            node.value = min_larger_node.value
-            node.right = self._delete_recursive(node.right, min_larger_node.value)
+            min_node = self._find_min(node.right)  # Узел с двумя потомками
+            node.value = min_node.value
+            node.right = self._delete_recursive(node.right, min_node.value)
         return node
 
-    def _find_min(self, node):
-        """Находит минимальный узел в поддереве."""
+    def _find_min(self, node):  # Поиск минимального узла
         while node.left is not None:
             node = node.left
         return node
 
-# --- Часть 2: Хеш-таблица с рехэшированием ---
 
+# --- Хеш-таблица с простым рехэшированием ---
 class HashTable:
-    """Хеш-таблица с простым рехэшированием для разрешения коллизий."""
-
+    """Хеш-таблица с линейным пробированием."""
     def __init__(self, capacity):
         self.capacity = capacity
         self.table = [None] * capacity
-        self.collision_count = 0
+        self.collisions = 0
 
     def hash(self, key):
-        """Вычисляет хеш для ключа."""
-        return key % self.capacity
+        a = 3571  # Простое число для лучшего распределения
+        b = 6181
+        return (a * key + b) % self.capacity
 
     def add(self, key):
-        """Добавляет ключ в таблицу."""
         idx = self.hash(key)
         original_idx = idx
         step = 1
         while self.table[idx] is not None:
-            self.collision_count += 1
-            idx = (original_idx + step) % self.capacity
-            step += 1
+            if self.table[idx] == key:
+                return False  # Ключ уже существует
+            self.collisions += 1
+            idx = (idx + step) % self.capacity
             if idx == original_idx:
-                print("Таблица полностью заполнена!")
+                print("Таблица заполнена!")
                 return False
         self.table[idx] = key
         return True
 
     def lookup(self, key):
-        """Ищет ключ в таблице."""
         idx = self.hash(key)
         original_idx = idx
         step = 1
         while self.table[idx] is not None:
             if self.table[idx] == key:
                 return idx
-            idx = (original_idx + step) % self.capacity
-            step += 1
+            idx = (idx + step) % self.capacity
             if idx == original_idx:
                 break
         return -1
 
     def remove(self, key):
-        """Удаляет ключ из таблицы."""
         idx = self.hash(key)
         original_idx = idx
         step = 1
@@ -135,70 +119,96 @@ class HashTable:
             if self.table[idx] == key:
                 self.table[idx] = None
                 return True
-            idx = (original_idx + step) % self.capacity
-            step += 1
+            idx = (idx + step) % self.capacity
             if idx == original_idx:
                 break
         return False
 
-# --- Измерение производительности ---
 
-def time_function(func, *args, iterations=100):
-    """Измеряет среднее время выполнения функции."""
-    total_time = sum(time.time() - time.time() for _ in range(iterations))
-    result = func(*args)
+# --- Функция измерения времени ---
+def measure_time(func, *args, iterations=1000):
+    total_time = 0.0
+    for _ in range(iterations):
+        start = time.perf_counter()
+        result = func(*args)
+        end = time.perf_counter()
+        total_time += (end - start)
     return result, total_time / iterations
 
-# --- Основная программа ---
 
+# --- Основная программа ---
 if __name__ == "__main__":
-    # --- Бинарное дерево поиска ---
-    dataset_size = 1_000_000
-    raw_data = [random.randint(0, 1_000_000) for _ in range(dataset_size)]
+    # --- Настройки тестирования ---
+    dataset_size = 10_000_000
+    data = [random.randint(0, 10_000_000) for _ in range(dataset_size)]
+
+    # --- Тестирование: Бинарное дерево ---
     bst = BinarySearchTree()
 
-    # Вставка данных в бинарное дерево
-    start_time_insert = time.time()
-    for value in raw_data:
-        bst.insert(value)
-    insert_duration = time.time() - start_time_insert
-    print(f"Вставка данных в бинарное дерево заняла {insert_duration:.6f} секунд.")
+    # Вставка
+    insert_result, insert_time = measure_time(
+        lambda: [bst.insert(x) for x in data], iterations=1
+    )
+    print(f"Вставка в дерево заняла {insert_time:.9f} сек.")
 
-    # Поиск элемента в бинарном дереве
-    search_target = random.choice(raw_data) if raw_data else None
-    search_result, search_time = time_function(bst.search, search_target) if search_target else (False, 0)
-    print(f"Поиск в бинарном дереве: {'Элемент найден' if search_result else 'Элемент не найден'} "
-          f"(время: {search_time:.6f} сек).")
+    # Поиск
+    target = random.choice(data)
+    search_result, search_time = measure_time(bst.search, target)
+    print(f"Поиск в дереве: {'Найден' if search_result else 'Не найден'}, время: {search_time:.9f} сек.")
 
-    # Удаление элемента из бинарного дерева
-    delete_value = random.choice(raw_data) if raw_data else None
-    delete_result, delete_time = time_function(bst.delete, delete_value) if delete_value else (False, 0)
-    print(f"Удаление из бинарного дерева: {'Элемент удален' if delete_result else 'Элемент не найден'} "
-          f"(время: {delete_time:.6f} сек).")
+    # Удаление
+    delete_value = random.choice(data)
+    delete_result, delete_time = measure_time(bst.delete, delete_value)
+    print(f"Удаление из дерева: {'Удалён' if delete_result else 'Не найден'}, время: {delete_time:.9f} сек.")
 
-    # --- Хеш-таблица ---
-    table_capacity = 20011  # Простое число
+
+    # --- Тестирование: Хеш-таблица ---
+    table_capacity = 30011  # Увеличено для снижения коллизий
     hashtable = HashTable(table_capacity)
 
+    # Добавляем уникальные элементы
+    elements = list(set(random.randint(0, 1_000_000) for _ in range(7000)))
+
     # Заполнение таблицы
-    elements_to_add = [random.randint(0, 200) for _ in range(7000)]
-    for elem in elements_to_add:
+    for elem in elements:
         hashtable.add(elem)
 
-    # Поиск элемента
-    search_key = random.randint(0, 200)
-    hash_result, hash_time = time_function(hashtable.lookup, search_key)
-    print(f"Поиск в хеш-таблице: {'Элемент найден' if hash_result != -1 else 'Элемент не найден'} "
-          f"(время: {hash_time:.6f} сек).")
+    # Поиск
+    search_key = random.choice(elements)
+    hash_result, hash_time = measure_time(hashtable.lookup, search_key)
+    print(f"Поиск в таблице: {'Найден' if hash_result != -1 else 'Не найден'}, время: {hash_time:.9f} сек.")
 
-    # Добавление элемента
-    new_key = random.randint(0, 200)
-    _, hash_insert_time = time_function(hashtable.add, new_key)
-    print(f"Добавление в хеш-таблицу заняло {hash_insert_time:.6f} секунд.")
+    # Добавление
+    new_key = random.randint(0, 1_000_000)
+    _, hash_insert_time = measure_time(hashtable.add, new_key)
+    print(f"Добавление в таблицу заняло {hash_insert_time:.9f} сек.")
 
-    # Удаление элемента
-    delete_key = random.choice(elements_to_add) if elements_to_add else None
-    _, hash_remove_time = time_function(hashtable.remove, delete_key) if delete_key else (None, 0)
-    print(f"Удаление из хеш-таблицы заняло {hash_remove_time:.6f} секунд." if delete_key else "Нечего удалять.")
+    # Удаление
+    delete_key = random.choice(elements)
+    _, hash_remove_time = measure_time(hashtable.remove, delete_key)
+    print(f"Удаление из таблицы заняло {hash_remove_time:.9f} сек.")
+    
+    # --- Сравнение со встроенными структурами ---
+print("\n=== Сравнение со встроенными структурами ===")
 
-    print(f"Количество коллизий: {hashtable.collision_count}")
+# 1. Линейный поиск в списке (in)
+_, list_in_time = measure_time(lambda: target in data)
+print(f"Время линейного поиска (in list): {list_in_time:.9f} сек.")
+
+# 2. Бинарный поиск через bisect
+sorted_data = sorted(data)  # Для бинарного поиска нужен отсортированный список
+
+def bisect_search():
+    idx = bisect.bisect_left(sorted_data, target)
+    return idx < len(sorted_data) and sorted_data[idx] == target
+
+_, bisect_time = measure_time(bisect_search)
+print(f"Время бинарного поиска (bisect): {bisect_time:.9f} сек.")
+
+# 3. Поиск во встроенном set
+built_in_set = set(data)
+
+_, set_lookup_time = measure_time(lambda: target in built_in_set)
+print(f"Время поиска во встроенном set: {set_lookup_time:.9f} сек.")
+
+print(f"Количество коллизий: {hashtable.collisions}")
